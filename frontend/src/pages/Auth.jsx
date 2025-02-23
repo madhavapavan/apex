@@ -1,6 +1,12 @@
+// frontend/src/pages/Auth.jsx
 import React, { useState } from 'react';
 import { auth } from '../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithRedirect, // Replace signInWithPopup
+  GoogleAuthProvider,
+} from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
 
 function Auth() {
@@ -8,30 +14,34 @@ function Auth() {
   const [password, setPassword] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const navigate = useNavigate();
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
     try {
+      let userCredential;
       if (isSignup) {
-        await createUserWithEmailAndPassword(auth, email, password);
+        userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        navigate('/username-setup');
       } else {
-        await signInWithEmailAndPassword(auth, email, password);
+        userCredential = await signInWithEmailAndPassword(auth, email, password);
+        navigate('/dashboard');
       }
-      navigate('/'); // Redirect to landing page/dashboard
-    } catch (error) {
-      console.error('Authentication error:', error);
-      alert(error.message);
+    } catch (err) {
+      console.error('Authentication error:', err);
+      setError(err.message);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setError(null);
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      navigate('/');
-    } catch (error) {
-      console.error('Google sign-in error:', error);
-      alert(error.message);
+      await signInWithRedirect(auth, provider); // Use redirect instead of popup
+    } catch (err) {
+      console.error('Google sign-in error:', err);
+      setError(err.message);
     }
   };
 
@@ -41,6 +51,7 @@ function Auth() {
         <h2 className="text-2xl font-semibold mb-6 text-center">
           {isSignup ? 'Sign Up' : 'Login'}
         </h2>
+        {error && <p className="text-red-500 mb-4">{error}</p>}
         <form onSubmit={handleSubmit}>
           <input
             type="email"

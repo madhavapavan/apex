@@ -1,3 +1,4 @@
+// frontend/src/pages/UsernameSetup.jsx
 import React, { useState } from 'react';
 import { auth } from '../firebase';
 import axios from 'axios';
@@ -11,16 +12,23 @@ function UsernameSetup() {
     e.preventDefault();
     try {
       if (auth.currentUser) {
-        await axios.post('/api/users', {
+        const payload = {
           userId: auth.currentUser.uid,
           username: username,
           email: auth.currentUser.email,
-        });
-        navigate('/'); // Redirect to dashboard
+        };
+        console.log('Sending to backend:', payload);
+        const response = await axios.post('http://localhost:5000/api/users', payload);
+        console.log('Backend response:', response.data);
+        navigate('/dashboard');
       }
     } catch (error) {
-      console.error('Username setup error:', error);
-      alert(error.message);
+      console.error('Username setup error:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+      });
+      alert(`Failed to set username: ${error.message}`);
     }
   };
 
