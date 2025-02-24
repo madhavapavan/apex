@@ -52,9 +52,7 @@ apex/
 │   ├── public/             # Static assets
 │   ├── .env.local          # Local environment variables (not tracked)
 │   ├── package.json        # Frontend dependencies
-│   ├── vite.config.js      # Vite configuration
-│   ├── tailwind.config.js  # Tailwind configuration
-│   └── postcss.config.js   # PostCSS setup
+│   └── vite.config.js      # Vite configuration  
 ├── backend/                # Node.js backend (Express)
 │   ├── models/             # MongoDB schemas
 │   │   ├── Chat.js         # Chat schema
