@@ -1,56 +1,46 @@
-// frontend/src/components/Chat.jsx (assumed)
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+// backend/routes/chatRoutes.js
+const express = require('express');
+const router = express.Router();
+const Chat = require('../models/Chat');
+const axios = require('axios');
+require('dotenv').config();
 
-function Chat({ userId }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState('');
+router.get('/:userId', async (req, res) => {
+  try {
+    const chat = await Chat.findOne({ userId: req.params.userId });
+    res.json(chat || { messages: [] });
+  } catch (error) {
+    console.error('Error fetching chat history:', error);
+    res.status(500).json({ error: 'Error fetching chat history' });
+  }
+});
 
-  useEffect(() => {
-    const fetchMessages = async () => {
-      try {
-        const response = await axios.get(`http://localhost:5000/api/chats/${userId}`);
-        setMessages(response.data.messages);
-      } catch (error) {
-        console.error('Error fetching chat:', error);
-      }
-    };
-    fetchMessages();
-  }, [userId]);
-
-  const handleSend = async (e) => {
-    e.preventDefault();
-    try {
-      const response = await axios.post('http://localhost:5000/api/chats', {
-        userId,
-        message: input,
-      });
-      setMessages([...messages, { text: input, sender: 'user' }, { text: response.data.reply, sender: 'bot' }]);
-      setInput('');
-    } catch (error) {
-      console.error('Error sending message:', error);
+router.post('/', async (req, res) => {
+  const { userId, message } = req.body;
+  try {
+    let chat = await Chat.findOne({ userId });
+    if (!chat) {
+      chat = new Chat({ userId, messages: [] });
     }
-  };
+    chat.messages.push({ text: message, sender: 'user' });
 
-  return (
-    <div>
-      <div className="chat-messages">
-        {messages.map((msg, index) => ( // Line ~64 assumed
-          <div key={index} className={msg.sender === 'user' ? 'user-msg' : 'bot-msg'}>
-            {msg.text}
-          </div>
-        ))}
-      </div>
-      <form onSubmit={handleSend}>
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Type a message"
-        />
-        <button type="submit">Send</button>
-      </form>
-    </div>
-  );
-}
+    const geminiResponse = await axios.post(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      {
+        contents: [{ parts: [{ text: message }] }],
+      }
+    );
 
-export default Chat;
+    const botReply = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+    chat.messages.push({ text: botReply, sender: 'bot' });
+    chat.lastUpdated = Date.now();
+
+    await chat.save();
+    res.json({ reply: botReply });
+  } catch (error) {
+    console.error('Chat route error:', error);
+    res.status(500).json({ error: 'Error processing chat' });
+  }
+});
+
+module.exports = router;
