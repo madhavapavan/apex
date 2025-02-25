@@ -6,13 +6,18 @@ import {
   signInWithRedirect,
   GoogleAuthProvider,
   getRedirectResult,
+  updateProfile,
 } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
-import { Moon, Sun, LogIn, UserPlus, Mail, Lock, Chrome } from 'lucide-react';
+import { Moon, Sun, LogIn, UserPlus, Mail, Lock, Chrome, User } from 'lucide-react';
+import axios from 'axios';
 
 function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState(''); // New field
+  const [lastName, setLastName] = useState('');   // New field
+  const [username, setUsername] = useState('');   // New field
   const [isSignup, setIsSignup] = useState(false);
   const navigate = useNavigate();
   const [error, setError] = useState(null);
@@ -26,7 +31,6 @@ function Auth() {
     }
   }, [darkMode]);
 
-  // Handle redirect result on component mount
   useEffect(() => {
     const handleRedirect = async () => {
       try {
@@ -50,7 +54,22 @@ function Auth() {
       let userCredential;
       if (isSignup) {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        navigate('/username-setup');
+        // Update Firebase user profile with firstName and lastName
+        await updateProfile(userCredential.user, {
+          displayName: `${firstName} ${lastName}`,
+        });
+        // Send username to backend
+        const payload = {
+          userId: userCredential.user.uid,
+          username: username,
+          email: userCredential.user.email,
+          firstName,
+          lastName,
+        };
+        console.log('Sending to backend:', payload);
+        const response = await axios.post('http://localhost:5000/api/users', payload);
+        console.log('Backend response:', response.data);
+        navigate('/dashboard');
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
         navigate('/dashboard');
@@ -76,23 +95,17 @@ function Auth() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 transition-colors duration-300">
-      {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-[500px] h-[500px] -left-48 -top-48 bg-blue-500/20 dark:bg-blue-500/10 rounded-full blur-3xl animate-pulse"></div>
         <div className="absolute w-[500px] h-[500px] -right-48 -bottom-48 bg-purple-500/20 dark:bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      {/* Theme toggle */}
       <button
         onClick={() => setDarkMode(!darkMode)}
         className="fixed top-4 right-4 p-3 rounded-full bg-white/90 dark:bg-slate-800/90 shadow-lg backdrop-blur-sm hover:scale-110 transition-transform duration-200"
         aria-label="Toggle theme"
       >
-        {darkMode ? (
-          <Sun className="w-5 h-5 text-yellow-500" />
-        ) : (
-          <Moon className="w-5 h-5 text-slate-700" />
-        )}
+        {darkMode ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-slate-700" />}
       </button>
 
       <div className="relative min-h-screen flex items-center justify-center p-4">
@@ -108,6 +121,40 @@ function Auth() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {isSignup && (
+              <>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="First Name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:text-white transition-all duration-200"
+                  />
+                </div>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Last Name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:text-white transition-all duration-200"
+                  />
+                </div>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Username"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:text-white transition-all duration-200"
+                  />
+                </div>
+              </>
+            )}
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
@@ -118,7 +165,6 @@ function Auth() {
                 className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:text-white transition-all duration-200"
               />
             </div>
-
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
               <input
@@ -129,7 +175,6 @@ function Auth() {
                 className="w-full pl-12 pr-4 py-3 bg-white/50 dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-700/50 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 focus:border-transparent dark:text-white transition-all duration-200"
               />
             </div>
-
             <button
               type="submit"
               className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2"

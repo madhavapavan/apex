@@ -16,6 +16,12 @@ const userSchema = new mongoose.Schema({
     required: true,
     unique: true,
   },
+  firstName: {
+    type: String, // Added
+  },
+  lastName: {
+    type: String, // Added
+  },
   // Firebase Auth handles password storage.
 });
 

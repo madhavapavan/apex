@@ -1,11 +1,10 @@
-// backend/routes/userRoutes.js
 const express = require('express');
 const router = express.Router();
 const User = require('../models/User');
 
 // Create a new user
 router.post('/', async (req, res) => {
-  const { userId, username, email } = req.body;
+  const { userId, username, email, firstName, lastName } = req.body; // Added firstName, lastName
   try {
     // Validate input
     if (!userId || !username || !email) {
@@ -18,7 +17,7 @@ router.post('/', async (req, res) => {
         error: `Duplicate found: ${existingUser.userId === userId ? 'userId' : existingUser.username === username ? 'username' : 'email'} already exists`,
       });
     }
-    const newUser = new User({ userId, username, email });
+    const newUser = new User({ userId, username, email, firstName, lastName }); // Include firstName, lastName
     await newUser.save();
     res.status(201).json(newUser);
   } catch (err) {

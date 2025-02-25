@@ -1,19 +1,18 @@
-// frontend/src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { MessageSquarePlus, MessageSquare, ChevronRight, User } from 'lucide-react';
 
-function Sidebar({ userId, onNewChat, refreshChats }) {
+function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
   const [chats, setChats] = useState([]);
-  const [selectedChat, setSelectedChat] = useState(null); // Track active chat
+  const [selectedChat, setSelectedChat] = useState(null);
 
-  // Fetch chats from backend
   const fetchChats = async () => {
     try {
       const response = await axios.get(`http://localhost:5000/api/chats/${userId}`);
-      const chatData = response.data.messages ? [response.data] : []; // Wrap single chat in array
-      setChats(chatData);
-      if (chatData.length > 0 && !selectedChat) {
-        setSelectedChat(chatData[0]); // Default to first chat
+      setChats(response.data || []);
+      if (response.data.length > 0 && currentChatId) {
+        const current = response.data.find(chat => chat.chatId === currentChatId);
+        setSelectedChat(current || null);
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
@@ -21,81 +20,108 @@ function Sidebar({ userId, onNewChat, refreshChats }) {
     }
   };
 
-  // Refresh chats when userId changes or refreshChats is signaled
   useEffect(() => {
     if (userId) fetchChats();
-  }, [userId, refreshChats]);
+  }, [userId, currentChatId]);
 
-  // Handle creating a new chat (resets current chat)
   const handleNewChat = () => {
-    setChats([]); // Clear locally for now
+    onNewChat();
     setSelectedChat(null);
-    onNewChat(); // Notify parent to reset Chat.jsx
   };
 
-  // Handle selecting a chat (for future multi-chat support)
   const handleChatSelect = (chat) => {
     setSelectedChat(chat);
-    // Future: Pass selected chat to Chat.jsx if multi-chat is implemented
+    onChatSelect(chat.chatId);
   };
 
   return (
-    <aside className="w-72 bg-gray-900 text-white flex flex-col h-screen shadow-lg">
+    <aside className="h-full flex flex-col backdrop-blur-xl bg-white/10 dark:bg-slate-900/20 border-r border-white/20 dark:border-slate-700/20">
       {/* Header */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-white/10 dark:border-slate-700/10">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-bold">Chats</h2>
+          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400">
+            Conversations
+          </h2>
           <button
             onClick={handleNewChat}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-1.5 px-3 rounded-lg transition duration-200 flex items-center space-x-1"
+            className="p-2 rounded-xl bg-gradient-to-r from-blue-600/80 to-purple-600/80 hover:from-blue-700/80 hover:to-purple-700/80 text-white shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 group"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            <span>New Chat</span>
+            <MessageSquarePlus className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
           </button>
         </div>
       </div>
 
-      {/* Chat List */}
-      <ul className="flex-1 overflow-y-auto p-4 space-y-2">
+      {/* Chat list */}
+      <div className="flex-1 overflow-y-auto py-4 px-2 space-y-2">
         {chats.length > 0 ? (
           chats.map((chat, index) => (
-            <li
-              key={index}
+            <button
+              key={chat.chatId}
               onClick={() => handleChatSelect(chat)}
-              className={`p-3 rounded-lg cursor-pointer transition duration-200 ${
-                selectedChat === chat
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 hover:bg-gray-700 text-gray-200'
+              className={`w-full p-3 rounded-xl backdrop-blur-lg transition-all duration-200 group relative ${
+                selectedChat?.chatId === chat.chatId
+                  ? 'bg-gradient-to-r from-blue-600/20 to-purple-600/20 dark:from-blue-500/20 dark:to-purple-500/20 shadow-lg'
+                  : 'hover:bg-white/5 dark:hover:bg-slate-800/30'
               }`}
             >
-              <div className="flex flex-col">
-                <span className="font-semibold truncate">
-                  {chat.messages.length > 0 ? 'Conversation' : 'Empty Chat'}
-                </span>
-                {chat.messages.length > 0 && (
-                  <span className="text-sm text-gray-400 truncate">
-                    {chat.messages[chat.messages.length - 1].text.slice(0, 30) + '...'}
-                  </span>
-                )}
+              <div className="flex items-center space-x-3">
+                <div className={`p-2 rounded-lg ${
+                  selectedChat?.chatId === chat.chatId
+                    ? 'bg-gradient-to-r from-blue-600/80 to-purple-600/80'
+                    : 'bg-white/10 dark:bg-slate-700/30'
+                }`}>
+                  <MessageSquare className={`w-5 h-5 ${
+                    selectedChat?.chatId === chat.chatId
+                      ? 'text-white'
+                      : 'text-slate-700 dark:text-slate-300'
+                  }`} />
+                </div>
+                <div className="flex-1 text-left">
+                  <p className={`font-medium truncate ${
+                    selectedChat?.chatId === chat.chatId
+                      ? 'text-slate-900 dark:text-white'
+                      : 'text-slate-700 dark:text-slate-300'
+                  }`}>
+                    Chat #{index + 1}
+                  </p>
+                  {chat.messages.length > 0 && (
+                    <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
+                      {chat.messages[chat.messages.length - 1].text.slice(0, 30)}...
+                    </p>
+                  )}
+                </div>
+                <ChevronRight className={`w-4 h-4 transform transition-transform duration-200 ${
+                  selectedChat?.chatId === chat.chatId
+                    ? 'translate-x-0 text-slate-900 dark:text-white'
+                    : '-translate-x-2 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 text-slate-400'
+                }`} />
               </div>
-            </li>
+            </button>
           ))
         ) : (
-          <li className="text-gray-500 italic text-center">No chats yet</li>
+          <div className="flex flex-col items-center justify-center h-32 space-y-3">
+            <div className="p-3 rounded-full bg-white/10 dark:bg-slate-800/30">
+              <MessageSquare className="w-6 h-6 text-slate-400 dark:text-slate-500" />
+            </div>
+            <p className="text-slate-500 dark:text-slate-400 text-sm text-center">
+              No conversations yet
+            </p>
+          </div>
         )}
-      </ul>
+      </div>
 
-      {/* Footer (optional) */}
-      <div className="p-4 border-t border-gray-700 text-sm text-gray-400">
-        <p>User ID: {userId ? userId.slice(0, 8) + '...' : 'N/A'}</p>
+      {/* Footer with user info */}
+      <div className="p-4 border-t border-white/10 dark:border-slate-700/10">
+        <div className="flex items-center space-x-3 p-2 rounded-xl bg-white/5 dark:bg-slate-800/30">
+          <div className="p-2 rounded-lg bg-gradient-to-r from-blue-600/20 to-purple-600/20">
+            <User className="w-5 h-5 text-slate-700 dark:text-slate-300" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              ID: {userId ? `${userId.slice(0, 8)}...` : 'N/A'}
+            </p>
+          </div>
+        </div>
       </div>
     </aside>
   );
