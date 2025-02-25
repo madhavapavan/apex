@@ -15,9 +15,9 @@ import axios from 'axios';
 function Auth() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState(''); // New field
-  const [lastName, setLastName] = useState('');   // New field
-  const [username, setUsername] = useState('');   // New field
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
   const [isSignup, setIsSignup] = useState(false);
   const navigate = useNavigate();
   const [error, setError] = useState(null);
@@ -35,8 +35,28 @@ function Auth() {
     const handleRedirect = async () => {
       try {
         const result = await getRedirectResult(auth);
-        if (result) {
-          console.log('Google Sign-In successful:', result.user);
+        if (result && result.user) {
+          const { user } = result;
+          console.log('Google Sign-In successful:', user);
+
+          // Extract user data from Google profile
+          const displayName = user.displayName || '';
+          const [firstName = '', lastName = ''] = displayName.split(' '); // Split displayName into first/last
+          const email = user.email;
+          const username = firstName || email.split('@')[0]; // Use firstName or email prefix as username
+
+          // Create user in backend
+          const payload = {
+            userId: user.uid,
+            username,
+            email,
+            firstName,
+            lastName,
+          };
+          console.log('Sending to backend:', payload);
+          const response = await axios.post('http://localhost:5000/api/users', payload);
+          console.log('Backend response:', response.data);
+
           navigate('/dashboard');
         }
       } catch (err) {
@@ -54,20 +74,18 @@ function Auth() {
       let userCredential;
       if (isSignup) {
         userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        // Update Firebase user profile with firstName and lastName
         await updateProfile(userCredential.user, {
           displayName: `${firstName} ${lastName}`,
         });
-        // Send username to backend
         const payload = {
           userId: userCredential.user.uid,
-          username: username,
+          username,
           email: userCredential.user.email,
           firstName,
           lastName,
         };
         console.log('Sending to backend:', payload);
-        const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload);
+        const response = await axios.post('http://localhost:5000/api/users', payload);
         console.log('Backend response:', response.data);
         navigate('/dashboard');
       } else {
