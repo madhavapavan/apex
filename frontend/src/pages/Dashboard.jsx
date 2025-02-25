@@ -29,19 +29,37 @@ function Dashboard() {
     }
   }, [darkMode]);
 
+  const fetchUsernameWithRetry = async (uid, retries = 3, delayMs = 2000) => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/users/${uid}`, {
+          timeout: 10000, // 10-second timeout
+        });
+        return response.data.username || uid.email?.split('@')[0]; // Fallback to email prefix
+      } catch (err) {
+        console.error(`Attempt ${attempt} - Error fetching username:`, err);
+        if (attempt < retries && err.code === 'ERR_NETWORK') {
+          console.log(`Retrying in ${delayMs}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        } else {
+          throw err; // Last attempt or non-network error
+        }
+      }
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (currentUser) => {
       console.log('Auth state changed:', currentUser);
       if (currentUser) {
         setUser(currentUser);
         try {
-          const response = await axios.get(`http://localhost:5000/api/users/${currentUser.uid}`);
-          setUsername(response.data.username || currentUser.email.split('@')[0]); // Fallback to email prefix
+          const fetchedUsername = await fetchUsernameWithRetry(currentUser.uid);
+          setUsername(fetchedUsername);
         } catch (err) {
           console.error('Error fetching username:', err);
           if (err.response?.status === 404) {
-            // User not found in backend yet, use Firebase email as fallback
-            setUsername(currentUser.email.split('@')[0]);
+            setUsername(currentUser.email?.split('@')[0]); // Fallback for new users
           } else {
             setError('Failed to fetch user data: ' + err.message);
           }
@@ -121,7 +139,7 @@ function Dashboard() {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         } transition-transform duration-300 ease-in-out z-30 w-80`}
       >
-        <div className="h-full backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 shadow-2xl">
+        <div className="h-full backdrop-blur-lg bg-white/70 dark:bg-slate-900/70 shadow-2xl">
           <Sidebar
             userId={user?.uid}
             onNewChat={handleNewChat}
@@ -139,7 +157,7 @@ function Dashboard() {
       )}
 
       <div className="flex-1 flex flex-col">
-        <header className="backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-white/20 dark:border-slate-700/20 shadow-lg z-20">
+        <header className="backdrop-blur-lg bg-white/70 dark:bg-slate-900/70 border-b border-white/20 dark:border-slate-700/20 shadow-lg z-20">
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-4">
               <button
