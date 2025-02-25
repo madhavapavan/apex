@@ -1,6 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Send } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+
+// Preprocess Markdown to fix table formatting
+const preprocessMarkdown = (text) => {
+  // Replace common table formatting issues
+  // Remove extra spaces around pipes and ensure proper separator row
+  const lines = text.split('\n');
+  const tableLines = lines.map((line, index) => {
+    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      // Normalize pipes and spaces
+      const cleanedLine = line
+        .split('|')
+        .map(cell => cell.trim())
+        .join(' | ')
+        .replace(/^\s*|\s*$/g, ''); // Remove leading/trailing spaces
+      
+      // Fix separator row (second row of table)
+      if (index === 1 && cleanedLine.match(/^\|[-|\s]+$/)) {
+        const header = lines[0].split('|').filter(Boolean).length;
+        return '| ' + Array(header).fill('---').join(' | ') + ' |';
+      }
+      return cleanedLine;
+    }
+    return line;
+  });
+  return tableLines.join('\n');
+};
 
 function Chat({ userId, chatId, onChatCreated, darkMode }) {
   const [messages, setMessages] = useState([]);
@@ -46,7 +73,8 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
       });
 
       setIsTyping(false);
-      setMessages(prev => [...prev, { text: response.data.reply, sender: 'bot' }]);
+      const botReply = preprocessMarkdown(response.data.reply); // Preprocess bot response
+      setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]);
 
       if (!chatId) {
         onChatCreated(response.data.chatId);
@@ -73,7 +101,6 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
 
   return (
     <div className={`flex flex-col h-full ${messages.length === 0 ? 'justify-center' : 'justify-end'} space-y-4`}>
-      {/* Messages container */}
       <div className={`flex-1 overflow-y-auto space-y-4 pr-4 -mr-4 ${messages.length === 0 ? 'flex items-center justify-center' : ''}`}>
         {messages.length > 0 ? (
           messages.map((msg, index) => (
@@ -85,10 +112,41 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
                 className={`max-w-[80%] p-4 rounded-2xl backdrop-blur-lg shadow-lg transform transition-all duration-200 hover:scale-[1.02] ${
                   msg.sender === 'user'
                     ? 'bg-gradient-to-br from-blue-600/80 to-purple-600/80 dark:from-blue-500/40 dark:to-purple-500/40 text-white ml-8'
-                    : 'bg-white/60 dark:bg-slate-800/60 text-slate-900 dark:text-white mr-8'
+                    : 'bg-white/60 dark:bg-slate-800/60 text-slate-900 dark:text-white mr-8 prose prose-sm max-w-none dark:prose-invert'
                 }`}
               >
-                <p className="whitespace-pre-wrap">{msg.text}</p>
+                {msg.sender === 'user' ? (
+                  <p className="whitespace-pre-wrap">{msg.text}</p>
+                ) : (
+                  <ReactMarkdown
+                    components={{
+                      code({ node, inline, children, ...props }) {
+                        return inline ? (
+                          <code className="bg-gray-200 dark:bg-slate-700 px-1 rounded" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <pre className="bg-gray-200 dark:bg-slate-700 p-2 rounded overflow-auto">
+                            <code {...props}>{children}</code>
+                          </pre>
+                        );
+                      },
+                      table({ node, ...props }) {
+                        return (
+                          <table className="border-collapse border border-gray-300 dark:border-slate-600" {...props} />
+                        );
+                      },
+                      th({ node, ...props }) {
+                        return <th className="border border-gray-300 dark:border-slate-600 p-2" {...props} />;
+                      },
+                      td({ node, ...props }) {
+                        return <td className="border border-gray-300 dark:border-slate-600 p-2" {...props} />;
+                      },
+                    }}
+                  >
+                    {msg.text}
+                  </ReactMarkdown>
+                )}
               </div>
             </div>
           ))
@@ -100,7 +158,6 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
           </div>
         )}
         
-        {/* Typing indicator */}
         {isTyping && (
           <div className="flex justify-start">
             <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg p-4 rounded-2xl shadow-lg max-w-[80%] mr-8">
@@ -114,7 +171,6 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
         )}
       </div>
 
-      {/* Message input */}
       <form onSubmit={handleSend} className="relative">
         <textarea
           value={input}
