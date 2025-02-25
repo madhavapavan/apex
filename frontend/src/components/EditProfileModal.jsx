@@ -6,7 +6,7 @@ function EditProfileModal({ isOpen, onClose, username, setUsername, userId }) {
 
   const handleUsernameChange = async () => {
     try {
-      await axios.post(`/api/users`, {
+      await axios.post(`https://apex-backend-2ptl.onrender.com/api/users`, {
         userId: userId,
         username: username,
         email: "", // email not needed for update.
