@@ -22,6 +22,7 @@ function Auth() {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
+  const [loading, setLoading] = useState(false); // Add loading state
 
   useEffect(() => {
     if (darkMode) {
@@ -33,6 +34,7 @@ function Auth() {
 
   useEffect(() => {
     const handleRedirect = async () => {
+      setLoading(true);
       try {
         const result = await getRedirectResult(auth);
         if (result && result.user) {
@@ -41,9 +43,9 @@ function Auth() {
 
           // Extract user data from Google profile
           const displayName = user.displayName || '';
-          const [firstName = '', lastName = ''] = displayName.split(' '); // Split displayName into first/last
+          const [firstName = '', lastName = ''] = displayName.split(' ');
           const email = user.email;
-          const username = firstName || email.split('@')[0]; // Use firstName or email prefix as username
+          const username = firstName || email.split('@')[0];
 
           // Create user in backend
           const payload = {
@@ -54,14 +56,20 @@ function Auth() {
             lastName,
           };
           console.log('Sending to backend:', payload);
-          const response = await axios.post('http://localhost:5000/api/users', payload);
+          const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload, {
+            timeout: 10000, // 10-second timeout
+          });
           console.log('Backend response:', response.data);
 
-          navigate('/dashboard');
+          navigate('/dashboard', { replace: true }); // Ensure navigation
+        } else {
+          console.log('No redirect result, user might be signing in normally');
         }
       } catch (err) {
-        console.error('Redirect result error:', err.code, err.message);
-        setError(err.message);
+        console.error('Redirect result error:', err.code, err.message, err.response?.data);
+        setError(err.response?.data?.error || err.message || 'Failed to sign in with Google');
+      } finally {
+        setLoading(false);
       }
     };
     handleRedirect();
@@ -70,6 +78,7 @@ function Auth() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setLoading(true);
     try {
       let userCredential;
       if (isSignup) {
@@ -85,22 +94,25 @@ function Auth() {
           lastName,
         };
         console.log('Sending to backend:', payload);
-        const response = await axios.post('http://localhost:5000/api/users', payload);
+        const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload);
         console.log('Backend response:', response.data);
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
       console.log('Email/Password Sign-In successful:', userCredential.user);
     } catch (err) {
       console.error('Authentication error:', err.code, err.message);
       setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
     setError(null);
+    setLoading(true);
     try {
       console.log('Initiating Google Sign-In with redirect');
       const provider = new GoogleAuthProvider();
@@ -108,8 +120,17 @@ function Auth() {
     } catch (err) {
       console.error('Google sign-in error:', err.code, err.message);
       setError(err.message);
+      setLoading(false);
     }
   };
+
+  if (loading) return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 flex items-center justify-center">
+      <div className="backdrop-blur-lg bg-white/70 dark:bg-slate-800/70 p-8 rounded-2xl shadow-2xl">
+        <div className="animate-spin w-12 h-12 border-4 border-blue-500 dark:border-blue-400 border-t-transparent rounded-full"></div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 dark:from-slate-900 dark:to-blue-950 transition-colors duration-300">
