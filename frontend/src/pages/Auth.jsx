@@ -67,7 +67,7 @@ function Auth() {
           lastName,
         };
         console.log('Sending to backend:', payload);
-        const response = await axios.post('http://localhost:5000/api/users', payload);
+        const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload);
         console.log('Backend response:', response.data);
         navigate('/dashboard');
       } else {
