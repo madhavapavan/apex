@@ -1,6 +1,4 @@
-Below is a well-structured `README.md` file for your `apex` project, designed to be clear, engaging, and informative with emojis for a friendly touch. It includes a description, setup instructions, deployment steps, and a directory structure based on your project (`frontend/` and `backend/`). This README assumes you’ve resolved the Git push issue and are ready to document your app for deployment on GitHub (`https://github.com/madhavapavan/apex`).
 
----
 
 # Apex 🌟
 
