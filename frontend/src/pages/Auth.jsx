@@ -3,9 +3,8 @@ import { auth } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup,
   GoogleAuthProvider,
-  getRedirectResult,
   updateProfile,
 } from 'firebase/auth';
 import { useNavigate } from 'react-router-dom';
@@ -22,7 +21,7 @@ function Auth() {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
-  const [loading, setLoading] = useState(false); // Add loading state
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (darkMode) {
@@ -31,49 +30,6 @@ function Auth() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
-
-  useEffect(() => {
-    const handleRedirect = async () => {
-      setLoading(true);
-      try {
-        const result = await getRedirectResult(auth);
-        if (result && result.user) {
-          const { user } = result;
-          console.log('Google Sign-In successful:', user);
-
-          // Extract user data from Google profile
-          const displayName = user.displayName || '';
-          const [firstName = '', lastName = ''] = displayName.split(' ');
-          const email = user.email;
-          const username = firstName || email.split('@')[0];
-
-          // Create user in backend
-          const payload = {
-            userId: user.uid,
-            username,
-            email,
-            firstName,
-            lastName,
-          };
-          console.log('Sending to backend:', payload);
-          const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload, {
-            timeout: 10000, // 10-second timeout
-          });
-          console.log('Backend response:', response.data);
-
-          navigate('/dashboard', { replace: true }); // Ensure navigation
-        } else {
-          console.log('No redirect result, user might be signing in normally');
-        }
-      } catch (err) {
-        console.error('Redirect result error:', err.code, err.message, err.response?.data);
-        setError(err.response?.data?.error || err.message || 'Failed to sign in with Google');
-      } finally {
-        setLoading(false);
-      }
-    };
-    handleRedirect();
-  }, [navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -96,10 +52,10 @@ function Auth() {
         console.log('Sending to backend:', payload);
         const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload);
         console.log('Backend response:', response.data);
-        navigate('/dashboard', { replace: true });
+        navigate('/dashboard');
       } else {
         userCredential = await signInWithEmailAndPassword(auth, email, password);
-        navigate('/dashboard', { replace: true });
+        navigate('/dashboard');
       }
       console.log('Email/Password Sign-In successful:', userCredential.user);
     } catch (err) {
@@ -114,12 +70,34 @@ function Auth() {
     setError(null);
     setLoading(true);
     try {
-      console.log('Initiating Google Sign-In with redirect');
+      console.log('Initiating Google Sign-In with popup');
       const provider = new GoogleAuthProvider();
-      await signInWithRedirect(auth, provider);
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+
+      // Extract user data from Google profile
+      const displayName = user.displayName || '';
+      const [firstName = '', lastName = ''] = displayName.split(' ');
+      const email = user.email;
+      const username = firstName || email.split('@')[0];
+
+      // Create or update user in backend
+      const payload = {
+        userId: user.uid,
+        username,
+        email,
+        firstName,
+        lastName,
+      };
+      console.log('Sending to backend:', payload);
+      const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/users', payload);
+      console.log('Backend response:', response.data);
+
+      navigate('/dashboard');
     } catch (err) {
       console.error('Google sign-in error:', err.code, err.message);
       setError(err.message);
+    } finally {
       setLoading(false);
     }
   };
@@ -216,7 +194,10 @@ function Auth() {
             </div>
             <button
               type="submit"
-              className="w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2"
+              disabled={loading}
+              className={`w-full py-3 px-4 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 flex items-center justify-center gap-2 ${
+                loading ? 'opacity-50 cursor-not-allowed' : ''
+              }`}
             >
               {isSignup ? <UserPlus className="w-5 h-5" /> : <LogIn className="w-5 h-5" />}
               {isSignup ? 'Create Account' : 'Sign In'}
@@ -236,7 +217,10 @@ function Auth() {
 
           <button
             onClick={handleGoogleSignIn}
-            className="w-full py-3 px-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2"
+            disabled={loading}
+            className={`w-full py-3 px-4 bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center justify-center gap-2 ${
+              loading ? 'opacity-50 cursor-not-allowed' : ''
+            }`}
           >
             <Chrome className="w-5 h-5 text-blue-500" />
             Continue with Google
