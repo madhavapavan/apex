@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Chat = require('../models/Chat');
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid'); // For generating unique chatIds
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 // Get all chats for a user
@@ -11,8 +11,8 @@ router.get('/:userId', async (req, res) => {
     const chats = await Chat.find({ userId: req.params.userId }).sort({ lastUpdated: -1 });
     res.json(chats);
   } catch (error) {
-    console.error('Error fetching chat history:', error);
-    res.status(500).json({ error: 'Error fetching chat history' });
+    console.error('Error fetching chat history:', error.message, error.stack);
+    res.status(500).json({ error: 'Error fetching chat history', details: error.message });
   }
 });
 
@@ -25,8 +25,8 @@ router.get('/thread/:chatId', async (req, res) => {
     }
     res.json(chat);
   } catch (error) {
-    console.error('Error fetching chat thread:', error);
-    res.status(500).json({ error: 'Error fetching chat thread' });
+    console.error('Error fetching chat thread:', error.message, error.stack);
+    res.status(500).json({ error: 'Error fetching chat thread', details: error.message });
   }
 });
 
@@ -34,25 +34,34 @@ router.get('/thread/:chatId', async (req, res) => {
 router.post('/', async (req, res) => {
   const { userId, message, chatId } = req.body;
   try {
+    // Input validation
+    if (!userId || !message) {
+      return res.status(400).json({ error: 'userId and message are required' });
+    }
+
     let chat;
     if (chatId) {
-      // Append to existing chat
       chat = await Chat.findOne({ chatId });
       if (!chat) {
         return res.status(404).json({ error: 'Chat not found' });
       }
     } else {
-      // Create new chat
       chat = new Chat({ userId, chatId: uuidv4(), messages: [] });
     }
 
     chat.messages.push({ text: message, sender: 'user' });
 
+    // Check GEMINI_API_KEY
+    if (!process.env.GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY is not set in environment variables');
+    }
+
     const geminiResponse = await axios.post(
       `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         contents: [{ parts: [{ text: message }] }],
-      }
+      },
+      { timeout: 10000 } // 10-second timeout for Gemini API
     );
 
     const botReply = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
@@ -62,8 +71,12 @@ router.post('/', async (req, res) => {
     await chat.save();
     res.json({ chatId: chat.chatId, reply: botReply });
   } catch (error) {
-    console.error('Chat route error:', error);
-    res.status(500).json({ error: 'Error processing chat' });
+    console.error('Chat route error:', {
+      message: error.message,
+      stack: error.stack,
+      response: error.response?.data, // Log Gemini API response if available
+    });
+    res.status(500).json({ error: 'Error processing chat', details: error.message });
   }
 });
 
