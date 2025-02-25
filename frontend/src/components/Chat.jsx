@@ -43,7 +43,7 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
         return;
       }
       try {
-        const response = await axios.get(`http://localhost:5000/api/chats/thread/${chatId}`);
+        const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/thread/${chatId}`);
         console.log('Chat thread response:', response.data);
         setMessages(response.data.messages || []);
         setError(null);
@@ -66,7 +66,7 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
     setIsTyping(true);
 
     try {
-      const response = await axios.post('http://localhost:5000/api/chats', {
+      const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/chats', {
         userId,
         message: input,
         chatId: chatId || undefined,
