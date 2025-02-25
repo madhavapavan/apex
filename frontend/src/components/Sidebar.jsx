@@ -8,7 +8,7 @@ function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
 
   const fetchChats = async () => {
     try {
-      const response = await axios.get(`http://localhost:5000/api/chats/${userId}`);
+      const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/${userId}`);
       setChats(response.data || []);
       if (response.data.length > 0 && currentChatId) {
         const current = response.data.find(chat => chat.chatId === currentChatId);
