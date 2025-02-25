@@ -35,7 +35,7 @@ function Dashboard() {
       if (currentUser) {
         setUser(currentUser);
         try {
-          const response = await axios.get(`http://localhost:5000/api/users/${currentUser.uid}`);
+          const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/users/${currentUser.uid}`);
           if (!response.data?.username) {
             navigate('/username-setup');
           } else {
