@@ -19,7 +19,7 @@ function Dashboard() {
   const [currentChatId, setCurrentChatId] = useState(null);
   const [darkMode, setDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const sidebarRef = useRef(null); // Ref to track sidebar element
+  const sidebarRef = useRef(null);
 
   useEffect(() => {
     if (darkMode) {
@@ -35,15 +35,16 @@ function Dashboard() {
       if (currentUser) {
         setUser(currentUser);
         try {
-          const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/users/${currentUser.uid}`);
-          if (!response.data?.username) {
-            navigate('/username-setup');
-          } else {
-            setUsername(response.data.username);
-          }
+          const response = await axios.get(`http://localhost:5000/api/users/${currentUser.uid}`);
+          setUsername(response.data.username || currentUser.email.split('@')[0]); // Fallback to email prefix
         } catch (err) {
           console.error('Error fetching username:', err);
-          setError('Failed to fetch user data: ' + err.message);
+          if (err.response?.status === 404) {
+            // User not found in backend yet, use Firebase email as fallback
+            setUsername(currentUser.email.split('@')[0]);
+          } else {
+            setError('Failed to fetch user data: ' + err.message);
+          }
         } finally {
           setLoading(false);
         }
@@ -57,18 +58,14 @@ function Dashboard() {
     return () => unsubscribe();
   }, [navigate]);
 
-  // Handle clicks outside the sidebar to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isSidebarOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
         setIsSidebarOpen(false);
       }
     };
-
     document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSidebarOpen]);
 
   const handleLogout = async () => {
@@ -118,7 +115,6 @@ function Dashboard() {
 
   return (
     <div className="flex h-screen bg-blue-50 dark:bg-slate-900 transition-colors duration-300">
-      {/* Sidebar with slide animation */}
       <div
         ref={sidebarRef}
         className={`fixed inset-y-0 left-0 transform ${
@@ -135,7 +131,6 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Overlay when sidebar is open */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black/20 z-20"
@@ -143,7 +138,6 @@ function Dashboard() {
         />
       )}
 
-      {/* Main content */}
       <div className="flex-1 flex flex-col">
         <header className="backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border-b border-white/20 dark:border-slate-700/20 shadow-lg z-20">
           <div className="flex items-center justify-between p-4">
