@@ -49,7 +49,7 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
       });
       setIsTyping(false);
       const botReply = response.data.reply;
-      setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]));
+      setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]); // Fixed syntax: removed extra )
       if (!chatId && response.data.chatId) {
         onChatCreated(response.data.chatId);
       }
