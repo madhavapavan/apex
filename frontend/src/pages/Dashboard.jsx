@@ -33,14 +33,14 @@ function Dashboard() {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/users/${uid}`, {
-          timeout: 20000, // Increased to 20 seconds
+          timeout: 20000,
         });
         return response.data.username || uid.email?.split('@')[0];
       } catch (err) {
         console.error(`Attempt ${attempt} - Error fetching username:`, err);
         if (
           attempt < retries &&
-          (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED') // Handle timeout
+          (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED')
         ) {
           console.log(`Retrying in ${delayMs}ms...`);
           await new Promise(resolve => setTimeout(resolve, delayMs));
@@ -62,10 +62,10 @@ function Dashboard() {
         } catch (err) {
           console.error('Error fetching username:', err);
           if (err.response?.status === 404) {
-            setUsername(currentUser.email?.split('@')[0]); // Fallback for new users
+            setUsername(currentUser.email?.split('@')[0]);
           } else {
             setError('Failed to fetch user data: ' + err.message);
-            setUsername(currentUser.email?.split('@')[0]); // Fallback even on timeout
+            setUsername(currentUser.email?.split('@')[0]);
           }
         } finally {
           setLoading(false);
@@ -111,12 +111,16 @@ function Dashboard() {
     setIsModalOpen(!isModalOpen);
   };
 
-  const handleNewChat = () => {
-    setCurrentChatId(null);
+  const handleNewChat = async () => {
+    setCurrentChatId(null); // Reset to allow new chat creation
   };
 
   const handleChatSelect = (chatId) => {
     setCurrentChatId(chatId);
+  };
+
+  const handleChatCreated = (newChatId) => {
+    setCurrentChatId(newChatId); // Update currentChatId when a new chat is created
   };
 
   if (loading) return (
@@ -226,7 +230,7 @@ function Dashboard() {
               <Chat
                 userId={user?.uid}
                 chatId={currentChatId}
-                onChatCreated={(newChatId) => setCurrentChatId(newChatId)}
+                onChatCreated={handleChatCreated}
                 darkMode={darkMode}
               />
             </div>
