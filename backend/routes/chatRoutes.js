@@ -10,7 +10,7 @@ require('dotenv').config();
 router.get('/:userId', async (req, res) => {
   try {
     const chats = await Chat.find({ userId: req.params.userId }).sort({ lastUpdated: -1 });
-    res.json({ chats });
+    res.json({ chats }); // Consistent response format: { chats: [...] }
   } catch (error) {
     console.error('Error fetching chat history:', error.message, error.stack);
     res.status(500).json({ error: 'Failed to fetch chat history', details: error.message });
@@ -22,7 +22,7 @@ router.get('/thread/:chatId', async (req, res) => {
   try {
     const chat = await Chat.findOne({ chatId: req.params.chatId });
     if (!chat) return res.status(404).json({ error: 'Chat not found' });
-    res.json(chat);
+    res.json(chat); // Return full chat object
   } catch (error) {
     console.error('Error fetching chat thread:', error.message, error.stack);
     res.status(500).json({ error: 'Failed to fetch chat thread', details: error.message });
@@ -48,22 +48,21 @@ router.post('/', async (req, res) => {
 
     chat.messages.push({ text: message, sender: 'user' });
 
-    // Updated endpoint for Gemini 1.5 Flash free tier
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-    console.log('Sending request to Gemini API:', geminiUrl); // Debug log
+    console.log('Sending request to Gemini API:', geminiUrl);
     const geminiResponse = await axios.post(
       geminiUrl,
       { contents: [{ parts: [{ text: message }] }] },
-      { timeout: 10000 } // Prevent hanging
+      { timeout: 10000 }
     );
 
     const botReply = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
-    console.log('Gemini API response:', botReply); // Debug log
+    console.log('Gemini API response:', botReply);
     chat.messages.push({ text: botReply, sender: 'bot' });
     chat.lastUpdated = Date.now();
 
     await chat.save();
-    res.json({ chatId: chat.chatId, reply: botReply });
+    res.json({ chatId: chat.chatId, reply: botReply }); // Consistent response
   } catch (error) {
     console.error('Chat route error:', error.message, error.stack);
     if (error.response) {
