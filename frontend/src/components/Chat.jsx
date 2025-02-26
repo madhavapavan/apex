@@ -1,39 +1,14 @@
+// frontend/src/components/Chat.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Send } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
-
-// Preprocess Markdown to fix table formatting
-const preprocessMarkdown = (text) => {
-  // Replace common table formatting issues
-  // Remove extra spaces around pipes and ensure proper separator row
-  const lines = text.split('\n');
-  const tableLines = lines.map((line, index) => {
-    if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
-      // Normalize pipes and spaces
-      const cleanedLine = line
-        .split('|')
-        .map(cell => cell.trim())
-        .join(' | ')
-        .replace(/^\s*|\s*$/g, ''); // Remove leading/trailing spaces
-      
-      // Fix separator row (second row of table)
-      if (index === 1 && cleanedLine.match(/^\|[-|\s]+$/)) {
-        const header = lines[0].split('|').filter(Boolean).length;
-        return '| ' + Array(header).fill('---').join(' | ') + ' |';
-      }
-      return cleanedLine;
-    }
-    return line;
-  });
-  return tableLines.join('\n');
-};
 
 function Chat({ userId, chatId, onChatCreated, darkMode }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [error, setError] = useState(null);
   const [isTyping, setIsTyping] = useState(false);
+  const backendUrl = 'https://apex-backend-2ptl.onrender.com';
 
   useEffect(() => {
     const fetchMessages = async () => {
@@ -43,13 +18,13 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
         return;
       }
       try {
-        const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/thread/${chatId}`);
+        const response = await axios.get(`${backendUrl}/api/chats/thread/${chatId}`);
         console.log('Chat thread response:', response.data);
         setMessages(response.data.messages || []);
         setError(null);
       } catch (error) {
-        console.error('Error fetching chat thread:', error);
-        setError('Failed to load chat history');
+        console.error('Error fetching chat thread:', error.message, error.response?.data);
+        setError('Failed to load chat history: ' + (error.response?.data?.details || error.message));
         setMessages([]);
       }
     };
@@ -66,22 +41,20 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
     setIsTyping(true);
 
     try {
-      const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/chats', {
+      const response = await axios.post(`${backendUrl}/api/chats`, {
         userId,
         message: input,
         chatId: chatId || undefined,
       });
-
       setIsTyping(false);
-      const botReply = preprocessMarkdown(response.data.reply); // Preprocess bot response
+      const botReply = response.data.reply;
       setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]);
-
-      if (!chatId) {
+      if (!chatId && response.data.chatId) {
         onChatCreated(response.data.chatId);
       }
     } catch (error) {
-      console.error('Error sending message:', error);
-      setError('Failed to send message');
+      console.error('Error sending message:', error.message, error.response?.data);
+      setError('Failed to send message: ' + (error.response?.data?.details || error.message));
       setIsTyping(false);
     }
   };
@@ -115,38 +88,7 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
                     : 'bg-white/60 dark:bg-slate-800/60 text-slate-900 dark:text-white mr-8 prose prose-sm max-w-none dark:prose-invert'
                 }`}
               >
-                {msg.sender === 'user' ? (
-                  <p className="whitespace-pre-wrap">{msg.text}</p>
-                ) : (
-                  <ReactMarkdown
-                    components={{
-                      code({ node, inline, children, ...props }) {
-                        return inline ? (
-                          <code className="bg-gray-200 dark:bg-slate-700 px-1 rounded" {...props}>
-                            {children}
-                          </code>
-                        ) : (
-                          <pre className="bg-gray-200 dark:bg-slate-700 p-2 rounded overflow-auto">
-                            <code {...props}>{children}</code>
-                          </pre>
-                        );
-                      },
-                      table({ node, ...props }) {
-                        return (
-                          <table className="border-collapse border border-gray-300 dark:border-slate-600" {...props} />
-                        );
-                      },
-                      th({ node, ...props }) {
-                        return <th className="border border-gray-300 dark:border-slate-600 p-2" {...props} />;
-                      },
-                      td({ node, ...props }) {
-                        return <td className="border border-gray-300 dark:border-slate-600 p-2" {...props} />;
-                      },
-                    }}
-                  >
-                    {msg.text}
-                  </ReactMarkdown>
-                )}
+                <p className="whitespace-pre-wrap">{msg.text}</p>
               </div>
             </div>
           ))
@@ -157,7 +99,6 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
             </p>
           </div>
         )}
-        
         {isTyping && (
           <div className="flex justify-start">
             <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-lg p-4 rounded-2xl shadow-lg max-w-[80%] mr-8">
