@@ -1,18 +1,19 @@
+// backend/routes/chatRoutes.js
 const express = require('express');
 const router = express.Router();
 const Chat = require('../models/Chat');
 const axios = require('axios');
-const { v4: uuidv4 } = require('uuid'); // For generating unique chatIds
+const { v4: uuidv4 } = require('uuid');
 require('dotenv').config();
 
 // Get all chats for a user
 router.get('/:userId', async (req, res) => {
   try {
     const chats = await Chat.find({ userId: req.params.userId }).sort({ lastUpdated: -1 });
-    res.json(chats);
+    res.json({ chats }); // Wrap in object for consistency
   } catch (error) {
-    console.error('Error fetching chat history:', error);
-    res.status(500).json({ error: 'Error fetching chat history' });
+    console.error('Error fetching chat history:', error.message, error.stack);
+    res.status(500).json({ error: 'Failed to fetch chat history', details: error.message });
   }
 });
 
@@ -20,65 +21,54 @@ router.get('/:userId', async (req, res) => {
 router.get('/thread/:chatId', async (req, res) => {
   try {
     const chat = await Chat.findOne({ chatId: req.params.chatId });
-    if (!chat) {
-      return res.status(404).json({ error: 'Chat not found' });
-    }
+    if (!chat) return res.status(404).json({ error: 'Chat not found' });
     res.json(chat);
   } catch (error) {
-    console.error('Error fetching chat thread:', error);
-    res.status(500).json({ error: 'Error fetching chat thread' });
+    console.error('Error fetching chat thread:', error.message, error.stack);
+    res.status(500).json({ error: 'Failed to fetch chat thread', details: error.message });
   }
 });
 
 // Create or update a chat thread
 router.post('/', async (req, res) => {
   const { userId, message, chatId } = req.body;
+
+  if (!userId || !message) {
+    return res.status(400).json({ error: 'userId and message are required' });
+  }
+
   try {
-
-
-
-
-
     let chat;
     if (chatId) {
-      // Append to existing chat
       chat = await Chat.findOne({ chatId });
-      if (!chat) {
-        return res.status(404).json({ error: 'Chat not found' });
-      }
+      if (!chat) return res.status(404).json({ error: 'Chat not found' });
     } else {
-      // Create new chat
       chat = new Chat({ userId, chatId: uuidv4(), messages: [] });
     }
 
     chat.messages.push({ text: message, sender: 'user' });
 
-
-
-
-
-
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    console.log('Sending request to Gemini API:', geminiUrl); // Debug log
     const geminiResponse = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents: [{ parts: [{ text: message }] }],
-      }
-
+      geminiUrl,
+      { contents: [{ parts: [{ text: message }] }] },
+      { timeout: 10000 } // Prevent hanging
     );
 
     const botReply = geminiResponse.data?.candidates?.[0]?.content?.parts?.[0]?.text || "I couldn't generate a response.";
+    console.log('Gemini API response:', botReply); // Debug log
     chat.messages.push({ text: botReply, sender: 'bot' });
     chat.lastUpdated = Date.now();
 
     await chat.save();
     res.json({ chatId: chat.chatId, reply: botReply });
   } catch (error) {
-    console.error('Chat route error:', error);
-    res.status(500).json({ error: 'Error processing chat' });
-
-
-
-
+    console.error('Chat route error:', error.message, error.stack);
+    if (error.response) {
+      console.error('Gemini API error response:', error.response.data);
+    }
+    res.status(500).json({ error: 'Failed to process chat', details: error.message });
   }
 });
 
