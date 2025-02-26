@@ -20,6 +20,10 @@ function Dashboard() {
   const [darkMode, setDarkMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const sidebarRef = useRef(null);
+  const inactivityTimeoutRef = useRef(null); // Ref to store inactivity timeout
+
+  // Inactivity timeout duration (5 minutes in milliseconds)
+  const INACTIVITY_LIMIT = 15 * 60 * 1000; // 5 minutes
 
   useEffect(() => {
     if (darkMode) {
@@ -80,6 +84,57 @@ function Dashboard() {
     return () => unsubscribe();
   }, [navigate]);
 
+  // Handle browser close logout
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      try {
+        await signOut(auth);
+        console.log('Logged out on browser close');
+      } catch (err) {
+        console.error('Error during browser close logout:', err);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
+
+  // Handle inactivity logout
+  useEffect(() => {
+    const resetInactivityTimer = () => {
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+      }
+      inactivityTimeoutRef.current = setTimeout(() => {
+        handleLogout('Inactivity timeout after 5 minutes');
+      }, INACTIVITY_LIMIT);
+    };
+
+    const handleActivity = () => {
+      resetInactivityTimer();
+    };
+
+    // Add event listeners for user activity
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keypress', handleActivity);
+    window.addEventListener('click', handleActivity);
+
+    // Start the timer when the component mounts
+    resetInactivityTimer();
+
+    // Cleanup on unmount
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keypress', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      if (inactivityTimeoutRef.current) {
+        clearTimeout(inactivityTimeoutRef.current);
+      }
+    };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (isSidebarOpen && sidebarRef.current && !sidebarRef.current.contains(event.target)) {
@@ -90,11 +145,12 @@ function Dashboard() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isSidebarOpen]);
 
-  const handleLogout = async () => {
+  const handleLogout = async (reason = 'Manual logout') => {
     setLogoutLoading(true);
     setError(null);
     try {
       await signOut(auth);
+      console.log(`Logout triggered: ${reason}`);
       setUser(null);
       setUsername('');
       setCurrentChatId(null);
@@ -212,7 +268,7 @@ function Dashboard() {
                 )}
               </button>
               <button
-                onClick={handleLogout}
+                onClick={() => handleLogout('Manual logout')}
                 disabled={logoutLoading}
                 className={`bg-gradient-to-r from-red-500 to-pink-500 hover:from-red-600 hover:to-pink-600 text-white font-semibold py-2 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 ${
                   logoutLoading ? 'opacity-50 cursor-not-allowed' : ''
