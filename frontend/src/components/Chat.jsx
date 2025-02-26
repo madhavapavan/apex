@@ -1,4 +1,3 @@
-// frontend/src/components/Chat.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Send } from 'lucide-react';
@@ -21,7 +20,11 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
       try {
         const response = await axios.get(`${backendUrl}/api/chats/thread/${chatId}`);
         console.log('Chat thread response:', response.data);
-        setMessages(response.data.messages || []);
+        const fetchedMessages = response.data.messages || [];
+        if (!Array.isArray(fetchedMessages)) {
+          throw new Error('Messages is not an array');
+        }
+        setMessages(fetchedMessages);
         setError(null);
       } catch (error) {
         console.error('Error fetching chat thread:', error.message, error.response?.data);
@@ -49,9 +52,9 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
       });
       setIsTyping(false);
       const botReply = response.data.reply;
-      setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]); // Fixed syntax: removed extra )
+      setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]);
       if (!chatId && response.data.chatId) {
-        onChatCreated(response.data.chatId);
+        onChatCreated(response.data.chatId); // Update parent with new chatId
       }
     } catch (error) {
       console.error('Error sending message:', error.message, error.response?.data);
