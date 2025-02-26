@@ -1,4 +1,3 @@
-// frontend/src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MessageSquarePlus, MessageSquare, ChevronRight, User } from 'lucide-react';
@@ -11,9 +10,10 @@ function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
     try {
       const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/${userId}`);
       console.log('Fetched chats:', response.data); // Debug log
-      setChats(response.data || []);
-      if (response.data.length > 0) {
-        const current = response.data.find(chat => chat.chatId === currentChatId);
+      const chatData = response.data.chats || []; // Extract chats array from response
+      setChats(chatData);
+      if (chatData.length > 0) {
+        const current = chatData.find(chat => chat.chatId === currentChatId);
         setSelectedChat(current || null);
       }
     } catch (error) {
@@ -28,7 +28,7 @@ function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
 
   const handleNewChat = async () => {
     try {
-      await onNewChat(); // Trigger new chat creation in parent
+      await onNewChat(); // Trigger new chat creation in parent (resets currentChatId)
       await fetchChats(); // Refresh chat list immediately after
       setSelectedChat(null); // Reset selection to allow new chat to be active
     } catch (error) {
