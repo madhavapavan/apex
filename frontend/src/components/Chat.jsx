@@ -5,14 +5,19 @@ import ReactMarkdown from 'react-markdown';
 
 // Preprocess Markdown to fix table formatting
 const preprocessMarkdown = (text) => {
+  // Replace common table formatting issues
+  // Remove extra spaces around pipes and ensure proper separator row
   const lines = text.split('\n');
   const tableLines = lines.map((line, index) => {
     if (line.trim().startsWith('|') && line.trim().endsWith('|')) {
+      // Normalize pipes and spaces
       const cleanedLine = line
         .split('|')
         .map(cell => cell.trim())
         .join(' | ')
-        .replace(/^\s*|\s*$/g, '');
+        .replace(/^\s*|\s*$/g, ''); // Remove leading/trailing spaces
+      
+      // Fix separator row (second row of table)
       if (index === 1 && cleanedLine.match(/^\|[-|\s]+$/)) {
         const header = lines[0].split('|').filter(Boolean).length;
         return '| ' + Array(header).fill('---').join(' | ') + ' |';
@@ -38,9 +43,7 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
         return;
       }
       try {
-        const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/thread/${chatId}`, {
-          timeout: 20000, // 20-second timeout
-        });
+        const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/thread/${chatId}`);
         console.log('Chat thread response:', response.data);
         setMessages(response.data.messages || []);
         setError(null);
@@ -53,28 +56,6 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
     if (userId) fetchMessages();
   }, [userId, chatId]);
 
-  const sendMessageWithRetry = async (payload, retries = 3, delayMs = 3000) => {
-    for (let attempt = 1; attempt <= retries; attempt++) {
-      try {
-        const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/chats', payload, {
-          timeout: 20000, // 20-second timeout
-        });
-        return response;
-      } catch (err) {
-        console.error(`Attempt ${attempt} - Error sending message:`, err);
-        if (
-          attempt < retries &&
-          (err.code === 'ERR_NETWORK' || err.code === 'ECONNABORTED')
-        ) {
-          console.log(`Retrying in ${delayMs}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delayMs));
-        } else {
-          throw err;
-        }
-      }
-    }
-  };
-
   const handleSend = async (e) => {
     if (e) e.preventDefault();
     if (!input.trim()) return;
@@ -85,24 +66,22 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
     setIsTyping(true);
 
     try {
-      const payload = {
+      const response = await axios.post('https://apex-backend-2ptl.onrender.com/api/chats', {
         userId,
         message: input,
         chatId: chatId || undefined,
-      };
-      const response = await sendMessageWithRetry(payload);
+      });
 
       setIsTyping(false);
-      const botReply = preprocessMarkdown(response.data.reply);
+      const botReply = preprocessMarkdown(response.data.reply); // Preprocess bot response
       setMessages(prev => [...prev, { text: botReply, sender: 'bot' }]);
-      setError(null); // Clear any previous error
 
       if (!chatId) {
         onChatCreated(response.data.chatId);
       }
     } catch (error) {
       console.error('Error sending message:', error);
-      setError('Failed to send message: ' + (error.message || 'Unknown error'));
+      setError('Failed to send message');
       setIsTyping(false);
     }
   };
@@ -114,14 +93,15 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
     }
   };
 
+  if (error) return (
+    <div className="backdrop-blur-lg bg-red-500/10 dark:bg-red-500/5 border border-red-500/20 dark:border-red-500/10 rounded-xl p-4 text-red-600 dark:text-red-400 text-center">
+      {error}
+    </div>
+  );
+
   return (
     <div className={`flex flex-col h-full ${messages.length === 0 ? 'justify-center' : 'justify-end'} space-y-4`}>
       <div className={`flex-1 overflow-y-auto space-y-4 pr-4 -mr-4 ${messages.length === 0 ? 'flex items-center justify-center' : ''}`}>
-        {error && (
-          <div className="backdrop-blur-lg bg-red-500/10 dark:bg-red-500/5 border border-red-500/20 dark:border-red-500/10 rounded-xl p-4 text-red-600 dark:text-red-400 text-center">
-            {error}
-          </div>
-        )}
         {messages.length > 0 ? (
           messages.map((msg, index) => (
             <div
@@ -202,9 +182,9 @@ function Chat({ userId, chatId, onChatCreated, darkMode }) {
         />
         <button
           type="submit"
-          disabled={!input.trim() || isTyping}
+          disabled={!input.trim()}
           className={`absolute right-2 bottom-2 p-2 rounded-lg transition-all duration-200 ${
-            input.trim() && !isTyping
+            input.trim()
               ? 'text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-500/10 dark:hover:bg-blue-500/5'
               : 'text-slate-400 dark:text-slate-600 cursor-not-allowed'
           }`}
