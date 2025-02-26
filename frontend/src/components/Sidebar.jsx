@@ -1,3 +1,4 @@
+// frontend/src/components/Sidebar.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { MessageSquarePlus, MessageSquare, ChevronRight, User } from 'lucide-react';
@@ -9,13 +10,14 @@ function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
   const fetchChats = async () => {
     try {
       const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/chats/${userId}`);
+      console.log('Fetched chats:', response.data); // Debug log
       setChats(response.data || []);
-      if (response.data.length > 0 && currentChatId) {
+      if (response.data.length > 0) {
         const current = response.data.find(chat => chat.chatId === currentChatId);
         setSelectedChat(current || null);
       }
     } catch (error) {
-      console.error('Error fetching chats:', error);
+      console.error('Error fetching chats:', error.message);
       setChats([]);
     }
   };
@@ -24,9 +26,14 @@ function Sidebar({ userId, onNewChat, onChatSelect, currentChatId }) {
     if (userId) fetchChats();
   }, [userId, currentChatId]);
 
-  const handleNewChat = () => {
-    onNewChat();
-    setSelectedChat(null);
+  const handleNewChat = async () => {
+    try {
+      await onNewChat(); // Trigger new chat creation in parent
+      await fetchChats(); // Refresh chat list immediately after
+      setSelectedChat(null); // Reset selection to allow new chat to be active
+    } catch (error) {
+      console.error('Error handling new chat:', error.message);
+    }
   };
 
   const handleChatSelect = (chat) => {
