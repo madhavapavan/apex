@@ -33,7 +33,7 @@ function Dashboard() {
     }
   }, [darkMode]);
 
-  const fetchUsernameWithRetry = async (uid, retries = 3, delayMs = 3000) => {
+  const fetchUsernameWithRetry = async (uid, retries = 3, delayMs = 1000) => {
     for (let attempt = 1; attempt <= retries; attempt++) {
       try {
         const response = await axios.get(`https://apex-backend-2ptl.onrender.com/api/users/${uid}`, {
